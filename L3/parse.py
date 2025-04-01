@@ -1,3 +1,4 @@
+import os
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from urllib.parse import urlparse, ParseResult
 from datetime import date
@@ -85,6 +86,7 @@ def parse_status_code(status_code) -> int | None:
 def parse_log(line: str):
     l = line.split("\t")
 
+    print(l)
     try:
         return (
             date.fromtimestamp(float(l[0])),  # ts

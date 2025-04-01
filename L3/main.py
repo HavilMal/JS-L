@@ -4,7 +4,7 @@ import sys
 import pprint
 from parse import parse_log, parse_host, validate_status_code, validate_ip, validate_host, HTTP_METHODS
 
-log_path = "http_first_100k.log"
+log_path = "first_10.txt"
 
 
 # keys = [
@@ -166,6 +166,9 @@ logs = None
 with open(log_path, "r") as log:
     logs = read_log(log)
 
-    # pprint.pprint(logs)
-    d = log_to_dict(logs)
-    print_dict_entry_dates(d)
+    for i in range(10):
+        print(logs[i])
+
+    # # pprint.pprint(logs)
+    # d = log_to_dict(logs)
+    # print_dict_entry_dates(d)
