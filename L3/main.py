@@ -30,6 +30,9 @@ def sort_log(logs, index):
     if index > 8 or index < 0:
         raise IndexError("Index out of range")
 
+    if index == 7:
+        return logs.sort(key=lambda l: str(l[index]))
+
     return logs.sort(key=lambda l: l[index])
 
 
@@ -66,7 +69,7 @@ def get_failed_reads(logs, join=False):
 
 
 def get_entries_by_extension(logs, extension: str) -> list:
-    return [l for l in logs if l[8] and l[8].path.endswith(extension)]
+    return [l for l in logs if l[8] and l[8].endswith(extension)]
 
 
 def entry_to_dict(log):
@@ -162,9 +165,8 @@ def print_dict_entry_dates(sessions):
         print_stats(sessions[key])
 
 
-logs = None
-with open(log_path, "r") as log:
-    logs = read_log(log)
+if __name__ == "__main__":
+    logs = read_log()
 
     for i in range(10):
         print(logs[i])
@@ -172,3 +174,7 @@ with open(log_path, "r") as log:
     # # pprint.pprint(logs)
     # d = log_to_dict(logs)
     # print_dict_entry_dates(d)
+
+    # d = log_to_dict(logs)
+    # print_dict_entry_dates(d)
+    print(get_entries_by_extension(logs, "java"))

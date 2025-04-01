@@ -18,21 +18,21 @@ def validate_method(method) -> bool:
     return method in HTTP_METHODS
 
 
-def parse_method(method) -> str | None:
+def parse_method(method) -> str:
     if method == "-":
-        return None
+        return ""
 
     if validate_method(method):
         return method
     else:
-        return None
+        return ""
 
 
-def parse_uri(uri) -> ParseResult | None:
+def parse_uri(uri) -> str:
     if uri == "-":
-        return None
+        return ""
 
-    return urlparse(uri)
+    return uri
 
 
 def validate_ip(host) -> IPv4Address | IPv6Address | bool:
@@ -49,9 +49,9 @@ def validate_host(host) -> IPv4Address | IPv6Address | bool:
         return False
 
 
-def parse_host(host: str) -> IPv4Address | IPv6Address | str | None:
+def parse_host(host: str) -> IPv4Address | IPv6Address | str:
     if host == "-":
-        return None
+        return ""
 
     if ip := validate_ip(host):
         return ip
@@ -59,7 +59,7 @@ def parse_host(host: str) -> IPv4Address | IPv6Address | str | None:
     if validate_host(host):
         return host
 
-    return None
+    return ""
 
 
 def validate_status_code(status_code) -> int | bool:
@@ -73,14 +73,14 @@ def validate_status_code(status_code) -> int | bool:
     else:
         return False
 
-def parse_status_code(status_code) -> int | None:
+def parse_status_code(status_code) -> int:
     if status_code == "-":
-        return None
+        return 0
 
     if code := validate_status_code(status_code):
         return code
     else:
-        return None
+        return 0
 
 
 def parse_log(line: str):
