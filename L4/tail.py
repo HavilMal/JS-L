@@ -35,7 +35,8 @@ def read_last(iterable, lines):
 
     return list(last)
 
-
+# isatty
+# sys.stdin in queue
 def run():
     flags, args = parse_args()
 

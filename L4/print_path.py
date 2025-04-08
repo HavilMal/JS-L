@@ -13,7 +13,7 @@ def print_path_files():
         if os.path.isdir(path):
             print(path)
             for file in os.listdir(path):
-                if file.endswith(".exe"):
+                if os.access(file, os.X_OK):
                     print("\t", file)
 
 
