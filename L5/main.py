@@ -1,14 +1,25 @@
-from collections import namedtuple
+import logging
+import sys
 
-from find import get_address
-from parse_csv import *
-from parse_dir import group_measurement_files_by_key
+from run import run
 
-# stations = parse_stations("stacje.csv")
-# # measurement = parse_measurement(Path("measurements/2023_SO2_1g.csv"))
-#
-# # print(measurement)
-# print(stations)
 
-# group_measurement_files_by_key(Path("measurements"))
-get_address(Path("stacje.csv"), "Wrocław")
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setLevel(logging.DEBUG)
+stdout_handler.addFilter(lambda x: x.levelno <= logging.WARNING)
+stdout_handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
+
+stderr_handler = logging.StreamHandler(sys.stderr)
+stderr_handler.setLevel(logging.ERROR)
+stderr_handler.addFilter(lambda x: x.levelno >= logging.ERROR)
+stderr_handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
+
+logger.addHandler(stdout_handler)
+logger.addHandler(stderr_handler)
+
+
+if __name__ == "__main__":
+    run()
