@@ -1,31 +1,65 @@
+import csv
 import statistics
+from abc import ABC
 from datetime import datetime
-from typing import List
+from pathlib import Path
+from typing import List, Dict
 
 
 class Station:
-    def __init__(self):
-        ...
+    def __init__(self, code: str, international_code: str, name: str, old_code: str, launch_date: str,
+                 closing_date: str, station_type: str, area_type: str, station_kind: str, voivodeship: str, town: str,
+                 address: str, latitude: str, longitude: str):
+        self.code = code
+        self.international_code = international_code
+        self.name = name
+        self.old_code = old_code
+        self.launch_date = launch_date
+        self.closing_date = closing_date
+        self.station_type = station_type
+        self.area = area_type
+        self.station_kind = station_kind
+        self.voivodeship = voivodeship
+        self.town = town
+        self.address = address
 
     def __str__(self):
-        ...
+        return f"Station(code: {self.code}, name: {self.name}, type: {self.station_type}, kind: {self.station_kind}, voivodeship: {self.voivodeship}, town: {self.town}, address: {self.address})"
 
     def __repr__(self):
-        ...
+        return f"Station(code: {self.code}, internationa_code: {self.international_code}, name: {self.name}, old_code: {self.old_code}, launch_date: {self.launch_date}, closing_date: {self.closing_date}, type: {self.station_type}, area: {self.area}, station_kind: {self.station_kind}, voivodeship: {self.voivodeship}, town: {self.town}, address: {self.address})"
 
     def __eq__(self, other):
-        ...
+        return self.code == other.code
+
+
+def parse_stations(path: Path) -> Dict[str, Station]:
+    stations = {}
+    with open(path, newline="", encoding="utf-8") as csvfile:
+        reader = csv.reader(csvfile)
+
+        next(reader)
+
+        for row in reader:
+            if len(row) != 15:
+                raise ValueError("Station row must have 15 fields")
+
+            args = row[1:]
+
+            stations[args[0]] = Station(*args)
+
+    return stations
 
 
 class TimeSeries:
-    def __init__(self, measurement_name: str, station_code: str, average_time: str, dates: List[datetime], values: List[float], unit: str):
+    def __init__(self, measurement_name: str, station_code: str, average_time: str, dates: List[datetime],
+                 values: List[float], unit: str):
         self.measurement_name: str = measurement_name
         self.station_code: str = station_code
         self.average_time: str = average_time
         self.dates: List[datetime] = dates
         self.values: List[float] = values
         self.unit: str = unit
-
 
     @property
     def average(self):
@@ -34,14 +68,12 @@ class TimeSeries:
         else:
             return None
 
-
     @property
     def stddev(self):
         if self.values:
             return statistics.stdev(self.values)
         else:
             return None
-
 
     def __getitem__(self, item):
         if isinstance(item, int):
@@ -56,7 +88,6 @@ class TimeSeries:
 
             return self.dates[index], self.values[index]
 
-
     def __get_slice(self, slice):
         result = []
 
@@ -69,12 +100,13 @@ class TimeSeries:
             return result
 
 
-class SeriesValidator:
+class SeriesValidator(ABC):
     def analyze(self, series: TimeSeries) -> List[str]:
         pass
 
     def predicate(self, value):
         pass
+
 
 class OutlierDetector(SeriesValidator):
     # todo raise exception when k < 0
@@ -82,34 +114,39 @@ class OutlierDetector(SeriesValidator):
         self.k = k
 
     def analyze(self, series: TimeSeries) -> List[str]:
+        return list(filter(lambda x: x is not None, self._analyze(series)))
+
+    def _analyze(self, series: TimeSeries):
         stddev = series.stddev
 
         if stddev is None:
-            return []
+            return
 
         threshold = stddev * self.k
-        result = []
 
         for i, value in enumerate(series.values):
             if abs(value - series.average) > threshold:
-                result.append(f"Value {value} measured at {series.dates[i].strftime('%m/%d/%Y')} deviates from average by {abs(value - series.average)}")
+                yield f"Value {value} measured at {series.dates[i].strftime('%m/%d/%Y')} deviates from average by {abs(value - series.average)}"
+            else:
+                yield None
 
-        return result
 
 class ZeroSpikeDetector(SeriesValidator):
     def analyze(self, series: TimeSeries) -> List[str]:
+        return list(filter(lambda x: x is not None, self._analyze(series)))
+
+    def _analyze(self, series: TimeSeries):
         count = 0
-        result = []
 
         for i, value in enumerate(series.values):
             if not value:
                 count += 1
 
-            if count >= 3:
+            if value and count >= 3:
                 count = 0
-                result.append(f"Value {value} measured at {series.dates[i].strftime('%m/%d/%Y')} is third non-data value")
-
-        return result
+                yield f"Value {value} measured at {series.dates[i].strftime('%m/%d/%Y')} is third non-data value"
+            else:
+                yield None
 
 
 class ThresholdDetector(SeriesValidator):
@@ -117,35 +154,35 @@ class ThresholdDetector(SeriesValidator):
         self.threshold = threshold
 
     def analyze(self, series: TimeSeries) -> List[str]:
-        result = []
+        return list(filter(lambda x: x is not None, self._analyze(series)))
 
+    def _analyze(self, series: TimeSeries):
         for i, value in enumerate(series.values):
-            if self.predicate(value):
-                result.append(f"Value {value} measured at {series.dates[i].strftime('%m/%d/%Y')} is over the threshold by {value - self.threshold}")
-
-        return result
-
-    def predicate(self, value):
-        return value > self.threshold
+            if value > self.threshold:
+                yield f"Value {value} measured at {series.dates[i].strftime('%m/%d/%Y')} is over the threshold by {value - self.threshold}"
+            else:
+                yield None
 
 
 class CompositeDetector(SeriesValidator):
-    def __init__(self, conjunctive=False,  *args):
+    def __init__(self, conjunctive=False, *args):
         self.detectors = list(filter(lambda x: isinstance(x, SeriesValidator), args))
+        self.conjunctive = conjunctive
 
     def analyze(self, series: TimeSeries) -> List[str]:
-        result = []
+        if not self.detectors:
+            return []
 
-        for detector in self.detectors:
-            result += detector.analyze(series)
+        messages = []
 
-        return result
+        analyzers = [x._analyze(series) for x in self.detectors]
 
+        for _ in range(len(series.values)):
+            result = [next(x) for x in analyzers]
 
+            if self.conjunctive and None not in result:
+                messages += result
+            else:
+                messages += list(filter(lambda x: x is not None, result))
 
-
-
-
-t = TimeSeries("NO2", "Station", "1g", [datetime(1990, 8, 20)], [12], "cm")
-
-
+        return messages

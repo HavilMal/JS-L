@@ -22,25 +22,34 @@ class Measurements:
         return len(self.loaded)
 
     def __contains__(self, item):
-        self.
+        self.load_all()
         return item in [timeseries.measurement_name for timeseries in self.loaded]
 
     def get_by_parameter(self, parameter_name:str):
-        return list(filter(lambda x: x.measurement_name == parameter_name, self.loaded))
+        result = []
+
+        for file in self.path.glob("*.csv"):
+            f = re.match(rf".*_{parameter_name}_.*")
+            if f:
+                result += self.load(file)
+
+        return result
 
     def get_by_station(self, station_code:str):
+        self.load_all()
         return list(filter(lambda x: x.station_code == station_code, self.loaded))
 
     def detect_all_anomalies(self, validators: List[SeriesValidator], preload: bool = False):
         if preload:
             self.load_all()
 
-        anomalies = []
+        anomalies = {x: [] for x in validators}
 
         for validator in validators:
             for series in self.loaded:
-                anomalies.append(validator.analyze(series))
+                anomalies[validator].append(validator.analyze(series))
 
+        return anomalies
 
     def _read_info_lines(self, reader):
         field_names = ["No", "codes", "measurements", "average_times", "units", "stand_codes"]
@@ -73,7 +82,6 @@ class Measurements:
 
             series, data_offset = self._read_info_lines(reader)
 
-
             for row in reader:
                 date = re.match(r"(\d{2})/(\d{2})/(\d{2})\s(\d{2}):(\d{2})", row[0])
                 if date is None:
@@ -85,23 +93,17 @@ class Measurements:
                 hour = int(date.group(4))
                 minute = int(date.group(5))
 
-
                 for i, value in enumerate(row[data_offset:]):
                     if value:
                         series[i].values.append(float(value))
                         series[i].dates.append(datetime(year, month, day, hour, minute))
 
-
             self.loaded_paths.append(path)
             self.loaded += series
+
+            return series
 
 
     def load_all(self):
         for filename in self.path.glob("*.csv"):
             self.load(filename)
-
-
-
-
-
-
