@@ -1,5 +1,6 @@
 import csv
 import logging
+import re
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -57,9 +58,13 @@ def _read_info_lines(reader):
     field_names = ["No", "codes", "measurements", "average_times", "units", "stand_codes"]
     fields = {}
 
+    data_offset = 1
+
     for key in field_names:
         values = next(reader)
-        fields[key] = values[1:]
+        if values[0] == "":
+            data_offset = 2
+        fields[key] = values[data_offset:]
 
     stations = []
 
@@ -68,7 +73,7 @@ def _read_info_lines(reader):
             StationMeasurement(fields["codes"][i], fields["measurements"][i], fields["average_times"][i], fields["units"][i],
                                fields["stand_codes"][i]))
 
-    return stations
+    return stations, data_offset
 
 def parse_measurement(path: Path) -> Measurement:
     with open(path, newline='') as csvfile:
@@ -77,13 +82,17 @@ def parse_measurement(path: Path) -> Measurement:
 
         reader = read_line_wrapper(reader)
 
-        stations = _read_info_lines(reader)
+        stations, data_offset = _read_info_lines(reader)
         timestamps = []
 
         for row in reader:
+            m = re.match(r"\d{2}/\d{2}/\d{2}", row[0])
+            if m is None:
+                continue
+
             timestamps.append(row[0])
 
-            for i, value in enumerate(row[1:]):
+            for i, value in enumerate(row[data_offset:]):
                 if value:
                     stations[i].values.append(float(value))
                 else:

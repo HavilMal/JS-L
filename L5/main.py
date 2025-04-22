@@ -1,8 +1,7 @@
 import logging
 import sys
 
-from run import run
-
+from run import run, cli
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -23,3 +22,4 @@ logger.addHandler(stderr_handler)
 
 if __name__ == "__main__":
     run()
+    # cli()

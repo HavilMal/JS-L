@@ -1,6 +1,7 @@
 import argparse
 import logging
 from pathlib import Path
+import click
 
 from parse_csv import parse_stations
 from utils import get_random_station, convert_date, get_measurement, calculate_average_and_std, get_range
@@ -74,7 +75,8 @@ def run():
         return
 
     if start_date > end_date:
-        logging.warning(f"Start date ({start_date}) must be before end date ({end_date})")
+        logging.error(f"Start date ({start_date}) must be before end date ({end_date})")
+        return
 
     if args.subcommand == "random":
         run_random(args.measurement, args.frequency, start_date, end_date)
@@ -82,3 +84,61 @@ def run():
         run_average(args.station, args.measurement, args.frequency, start_date, end_date)
     else:
         raise Exception("Unknown subcommand")
+
+
+def validate_dates(start, end):
+    start_date = convert_date(start)
+    if start_date is None:
+        logging.error(f"Invalid start date: {start} (enter: YYYY-MM-DD)")
+        return None, None
+
+    end_date = convert_date(end)
+    if end_date is None:
+        logging.error(f"Invalid end date: {end} (enter: YYYY-MM-DD)")
+        return None, None
+
+    if start_date > end_date:
+        logging.error(f"Start date ({start_date}) must be before end date ({end_date})")
+        return  None, None
+
+    return start_date, end_date
+
+@click.group()
+@click.argument("measurement")
+@click.argument("frequency")
+@click.argument("start")
+@click.argument("end")
+@click.pass_context
+def cli(ctx, measurement, frequency, start, end):
+    ctx.ensure_object(dict)
+    ctx.obj["measurement"] = measurement
+    ctx.obj["frequency"] = frequency
+    ctx.obj["start"] = start
+    ctx.obj["end"] = end
+
+@cli.command()
+@click.argument("station")
+@click.pass_context
+def average(ctx, station):
+    start = ctx.obj["start"]
+    end = ctx.obj["end"]
+
+    start_date, end_date = validate_dates(start, end)
+
+    if start_date is None or end_date is None:
+        return
+
+    run_average(station, ctx.obj["measurement"], ctx.obj["frequency"], start_date, end_date)
+
+@cli.command()
+@click.pass_context
+def random(ctx):
+    start = ctx.obj["start"]
+    end = ctx.obj["end"]
+
+    start_date, end_date = validate_dates(start, end)
+
+    if start_date is None or end_date is None:
+        return
+
+    run_random(ctx.obj["measurement"], ctx.obj["frequency"], start_date, end_date)
