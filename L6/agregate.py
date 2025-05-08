@@ -22,7 +22,6 @@ class Measurements:
         return len(self.loaded)
 
     def __contains__(self, item):
-        self.
         return item in [timeseries.measurement_name for timeseries in self.loaded]
 
     def get_by_parameter(self, parameter_name:str):
