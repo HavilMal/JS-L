@@ -1,3 +1,4 @@
+from PySide6 import QtGui
 from PySide6.QtWidgets import QWidget, QLabel, QTextEdit, QHBoxLayout, QLineEdit
 
 
@@ -8,11 +9,11 @@ class LabeledDetail(QWidget):
 
         layout = QHBoxLayout()
         label = QLabel(str(label))
-        layout.addWidget(label)
+        layout.addWidget(label, 1)
 
         self.detail = QLineEdit()
         self.detail.setReadOnly(True)
-        layout.addWidget(self.detail)
+        layout.addWidget(self.detail, 3)
 
         self.setLayout(layout)
 
@@ -25,5 +26,8 @@ class LabeledDetail(QWidget):
         else:
             self.detail.setText(str(self.data))
 
-
+    def set_color(self, color):
+        palette = QtGui.QPalette()
+        palette.setColor(QtGui.QPalette.Text, color)
+        self.detail.setPalette(palette)
 

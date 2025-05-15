@@ -1,12 +1,15 @@
 from pathlib import Path
 
 from datetime import datetime
-from PySide6.QtCore import QDate, QDateTime
+from PySide6.QtCore import QDateTime, Qt
+from PySide6.QtGui import QColorConstants, QColor
 from PySide6.QtWidgets import QMainWindow, QPushButton, QHBoxLayout, QVBoxLayout, QLabel, QWidget, QListWidget, \
-    QFileDialog, QLineEdit, QDateEdit, QDateTimeEdit
+    QFileDialog, QLineEdit, QDateEdit, QDateTimeEdit, QMessageBox
 
 from LabeledDetail import LabeledDetail
 from parse import LogLoader, details
+
+DETAIL_NAMES = ["Time", "User ID", "Origin IP", "Origin port", "Response IP", "Response port", "Method", "Host", "URI", "Status code"]
 
 
 class MainWindow(QMainWindow):
@@ -35,12 +38,12 @@ class MainWindow(QMainWindow):
 
         nav_layout = QHBoxLayout()
         self.prev_button = QPushButton("Previous")
-        self.prev_button.clicked.connect(lambda: self.update_detail(self.index - 1))
+        self.prev_button.clicked.connect(lambda: self.handle_nav_button(self.index - 1))
         nav_layout.addWidget(self.prev_button, 1)
         nav_layout.addStretch(2)
 
         self.next_button = QPushButton("Next")
-        self.next_button.clicked.connect(lambda: self.update_detail(self.index + 1))
+        self.next_button.clicked.connect(lambda: self.handle_nav_button(self.index + 1))
         nav_layout.addWidget(self.next_button, 1)
         top_layout.addLayout(nav_layout)
 
@@ -54,11 +57,16 @@ class MainWindow(QMainWindow):
         self.list_widget.clicked.connect(lambda x: self.update_detail(x.row()))
 
         filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("From:"))
+        from_label = QLabel("From")
+        from_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        filter_layout.addWidget(from_label)
         self.from_date = QDateTimeEdit()
         self.from_date.editingFinished.connect(self.handle_filters)
         filter_layout.addWidget(self.from_date)
-        filter_layout.addWidget(QLabel("To:"))
+
+        to_label = QLabel("To:")
+        to_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        filter_layout.addWidget(to_label)
         self.to_date = QDateTimeEdit()
         self.to_date.editingFinished.connect(self.handle_filters)
         filter_layout.addWidget(self.to_date)
@@ -68,9 +76,9 @@ class MainWindow(QMainWindow):
         master_layout.addWidget(self.list_widget)
 
 
-        self.details = {}
-        for i in details:
-            detail = LabeledDetail(i, "")
+        self.details: dict[str, LabeledDetail] = {}
+        for i, n in zip(details, DETAIL_NAMES):
+            detail = LabeledDetail(n, "")
             self.details[i] = detail
             detail_layout.addWidget(detail)
 
@@ -86,6 +94,9 @@ class MainWindow(QMainWindow):
         dialog.show()
         dialog.fileSelected.connect(self.handle_load_logs)
 
+    def handle_nav_button(self, index):
+        self.list_widget.setCurrentRow(index)
+        self.update_detail(index)
 
     def update_detail(self, index):
         self.index = index
@@ -106,10 +117,27 @@ class MainWindow(QMainWindow):
         for key in details:
             self.details[key].set_data(log[key])
 
+        if 100 <= log["status_code"] <= 199:
+            self.details["status_code"].set_color(QColorConstants.Blue)
+        elif 200 <= log["status_code"] <= 299:
+            self.details["status_code"].set_color(QColorConstants.Green)
+        elif 300 <= log["status_code"] <= 399:
+            self.details["status_code"].set_color(QColorConstants.Yellow)
+        elif 400 <= log["status_code"] <= 499:
+            self.details["status_code"].set_color(QColor(255, 156, 28))
+        elif 500 <= log["status_code"] <= 599:
+            self.details["status_code"].set_color(QColorConstants.Red)
+
+
 
     def handle_load_logs(self, path):
+        if not self.load_logs(path):
+            err_message = QMessageBox().critical(self, "Invalid log file", "Provided log file is invalid and could not be loaded.")
+
+            return
+
+
         self.file_path.setText(path)
-        self.load_logs(path)
 
         if len(self.logs) != 0:
             f_date: datetime  = self.logs[0]["ts"]
@@ -134,12 +162,17 @@ class MainWindow(QMainWindow):
 
 
     def load_logs(self, path):
-        self.logs = self.log_loader.parse_logs(Path(path))
+        try:
+            self.logs = self.log_loader.parse_logs(Path(path))
+        except ValueError:
+            return False
 
         self.update_logs()
 
         if len(self.logs) != 0:
             self.update_detail(0)
+
+        return True
 
 
 
